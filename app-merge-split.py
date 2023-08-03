@@ -1,6 +1,6 @@
 import os
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QWidget, QPushButton, QListWidget, QLabel, QMenu, QAction, QMessageBox, QFileDialog, QInputDialog, QLineEdit, QDialog, QCheckBox, QScrollArea, QGridLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QWidget, QPushButton, QListWidget, QLabel, QMenu, QAction, QMessageBox, QFileDialog, QInputDialog, QLineEdit, QDialog, QCheckBox
 from PyQt5.QtGui import QImage, QPixmap
 import fitz  # Import thư viện PyMuPDF (fitz)
 from PyPDF2 import PdfMerger, PdfReader, PdfWriter
@@ -82,12 +82,16 @@ class PDFMergerApp(QMainWindow):
                 background-color: #3e8e41;
             }
             QListWidget {
-                background-color: #f0f0f0;
-                border: none;
+                background-color: #ffffff;
+                border: 2px solid #4CAF50;
                 padding: 10px;
+                font-size: 16px;
+            }
+            QListWidget::item {
+                padding: 5px;
             }
             QLabel {
-                padding: 10px;
+                padding: 5px;
             }
             QMenu {
                 background-color: #f0f0f0;
@@ -99,9 +103,6 @@ class PDFMergerApp(QMainWindow):
             QMenu::separator {
                 height: 1px;
                 background-color: #888;
-            }
-            QScrollArea {
-                background-color: #ffffff;
             }
         """
         self.setStyleSheet(style_sheet)
@@ -216,7 +217,7 @@ class PDFPreviewDialog(QDialog):
     def __init__(self, pdf_file, num_pages):
         super().__init__()
         self.setWindowTitle("Preview PDF")
-        self.setFixedSize(800, 600)
+        self.setGeometry(200, 200, 800, 600)
 
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -225,16 +226,8 @@ class PDFPreviewDialog(QDialog):
         self.num_pages = num_pages
         self.selected_pages = []
 
-        scroll_area = QScrollArea(self)
-        scroll_area.setWidgetResizable(True)
-        layout.addWidget(scroll_area)
-
-        self.pages_widget = QWidget()
-        scroll_area.setWidget(self.pages_widget)
-
-        self.pages_layout = QGridLayout(self.pages_widget)
-        self.pages_layout.setSpacing(10)
-        self.pages_layout.setContentsMargins(10, 10, 10, 10)
+        self.checkboxes_layout = QHBoxLayout()
+        layout.addLayout(self.checkboxes_layout)
 
         self.pages_to_show = 2
         self.current_page_index = 0
@@ -243,14 +236,13 @@ class PDFPreviewDialog(QDialog):
 
         self.prev_button = QPushButton("Previous", self)
         self.prev_button.clicked.connect(self.show_previous_pages)
+        layout.addWidget(self.prev_button)
 
         self.next_button = QPushButton("Next", self)
         self.next_button.clicked.connect(self.show_next_pages)
+        layout.addWidget(self.next_button)
 
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.prev_button)
-        button_layout.addWidget(self.next_button)
-        layout.addLayout(button_layout)
+        layout.addStretch()
 
         self.split_button = QPushButton("Split", self)
         self.split_button.clicked.connect(self.split_pages)
@@ -263,16 +255,16 @@ class PDFPreviewDialog(QDialog):
             pixmap = self.convert_to_pixmap(page)
             image_label = QLabel(self)
             image_label.setPixmap(pixmap)
-            self.pages_layout.addWidget(image_label, 0, i - self.current_page_index)
+            self.checkboxes_layout.addWidget(image_label)
 
             checkbox = QCheckBox(f"Page {i + 1}")
             checkbox.stateChanged.connect(self.checkbox_state_changed)
             checkbox.setProperty("page_index", i)
-            self.pages_layout.addWidget(checkbox, 1, i - self.current_page_index)
+            self.checkboxes_layout.addWidget(checkbox)
 
     def clear_checkboxes(self):
-        for i in reversed(range(self.pages_layout.count())):
-            item = self.pages_layout.takeAt(i)
+        while self.checkboxes_layout.count():
+            item = self.checkboxes_layout.takeAt(0)
             widget = item.widget()
             if widget:
                 widget.deleteLater()

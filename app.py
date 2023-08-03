@@ -1,75 +1,51 @@
-import PyPDF2
 import os
-from tkinter import Tk, filedialog, Listbox, Button, Label, Scrollbar, END
-
-selected_files = []
-
-def merge_pdfs(output_filename, *input_filenames):
-    pdf_merger = PyPDF2.PdfMerger()
-    
-    for filename in input_filenames:
-        with open(filename, 'rb') as pdf_file:
-            pdf_merger.append(pdf_file)
-    
-    with open(output_filename, 'wb') as output_file:
-        pdf_merger.write(output_file)
+import tkinter as tk
+from tkinter import filedialog
+from PyPDF2 import PdfMerger
 
 def select_files():
-    global selected_files
-    selected_files = filedialog.askopenfilenames(title="Chọn các file PDF cần gộp", filetypes=[("PDF Files", "*.pdf")])
-    if selected_files:
-        show_selected_files()
+    file_paths = filedialog.askopenfilenames(filetypes=[("PDF Files", "*.pdf")])
+    listbox.delete(0, tk.END)
+    for file_path in file_paths:
+        listbox.insert(tk.END, file_path)
 
-def show_selected_files():
-    listbox.delete(0, END)
-    for path in selected_files:
-        listbox.insert(END, path)
+def sort_files():
+    items = listbox.get(0, tk.END)
+    items.sort()
+    listbox.delete(0, tk.END)
+    for item in items:
+        listbox.insert(tk.END, item)
 
 def export_files():
-    if not selected_files:
-        print("Không có file nào được chọn. Kết thúc chương trình.")
+    output_file = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")])
+    if not output_file:
         return
+    
+    merger = PdfMerger()
+    for item in listbox.get(0, tk.END):
+        file_path = item
+        merger.append(file_path)
+    
+    merger.write(output_file)
+    merger.close()
 
-    with filedialog.asksaveasfile(defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")]) as temp_file:
-        output_filename = temp_file.name
-        merge_pdfs(output_filename, *selected_files)
-        print(f"Gộp các file thành công! Kết quả được lưu vào file '{output_filename}'.")
+    tk.messagebox.showinfo("Done", "PDFs have been merged successfully!")
 
-def print_pdf():
-    if not selected_files:
-        print("Không có file nào được chọn. Kết thúc chương trình.")
-        return
+# Create the main application window
+root = tk.Tk()
+root.title("PDF Merger")
 
-    with filedialog.asksaveasfile(defaultextension=".pdf", filetypes=[("PDF Files", "*.pdf")]) as temp_file:
-        output_filename = temp_file.name
-        merge_pdfs(output_filename, *selected_files)
-        os.startfile(output_filename, "print")
+# Create GUI components
+select_button = tk.Button(root, text="Select", command=select_files)
+sort_button = tk.Button(root, text="Sort", command=sort_files)
+export_button = tk.Button(root, text="Export", command=export_files)
+listbox = tk.Listbox(root, selectmode=tk.MULTIPLE, width=50)
 
-def main():
-    root = Tk()
-    root.title("Ứng dụng gộp PDF")
+# Grid layout
+select_button.grid(row=0, column=0, padx=10, pady=5)
+sort_button.grid(row=0, column=1, padx=10, pady=5)
+export_button.grid(row=0, column=2, padx=10, pady=5)
+listbox.grid(row=1, column=0, columnspan=3, padx=10, pady=5)
 
-    label = Label(root, text="Các file đã chọn:")
-    label.pack()
-
-    listbox = Listbox(root, selectmode="multiple", height=10, width=50)
-    listbox.pack(fill="both", expand=True)
-
-    scrollbar = Scrollbar(root)
-    scrollbar.pack(side="right", fill="y")
-    listbox.config(yscrollcommand=scrollbar.set)
-    scrollbar.config(command=listbox.yview)
-
-    select_button = Button(root, text="Select", command=lambda: select_files())
-    select_button.pack()
-
-    export_button = Button(root, text="Export", command=lambda: export_files())
-    export_button.pack()
-
-    print_button = Button(root, text="Print", command=lambda: print_pdf())
-    print_button.pack()
-
-    root.mainloop()
-
-if __name__ == "__main__":
-    main()
+# Start the main event loop
+root.mainloop()

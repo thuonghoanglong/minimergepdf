@@ -1,7 +1,9 @@
 import os
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QWidget, QPushButton, QListWidget, QLabel, QMenu, QAction, QMessageBox, QFileDialog
-from PyPDF2 import PdfMerger, PdfFileReader, PdfFileWriter
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QWidget, QPushButton, QListWidget, QLabel, QMenu, QAction, QMessageBox, QFileDialog, QInputDialog, QLineEdit, QDialog, QCheckBox
+from PyQt5.QtGui import QImage, QPixmap
+import fitz  # Import thư viện PyMuPDF (fitz)
+from PyPDF2 import PdfMerger, PdfReader, PdfWriter
 
 class PDFMergerApp(QMainWindow):
     def __init__(self):
@@ -149,30 +151,31 @@ class PDFMergerApp(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please select a PDF file to split.")
             return
 
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select PDF to Split", "", "PDF Files (*.pdf)")
-        if not file_path:
-            return
-
-        input_pdf = PdfFileReader(file_path)
-        num_pages = input_pdf.getNumPages()
+        file_path = self.selected_files[0]  # Get the first selected file
+        input_pdf = PdfReader(file_path)
+        num_pages = len(input_pdf.pages)
 
         if num_pages == 1:
             QMessageBox.warning(self, "Warning", "The selected PDF has only one page.")
             return
 
-        output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
-        if not output_dir:
-            return
+        dialog = PDFPreviewDialog(file_path, num_pages)
+        if dialog.exec_():
+            pages_to_split = dialog.get_selected_pages()
 
-        for i in range(num_pages):
-            output_pdf = PdfFileWriter()
-            output_pdf.addPage(input_pdf.getPage(i))
+            output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+            if not output_dir:
+                return
 
-            output_file = os.path.join(output_dir, f"page_{i + 1}.pdf")
-            with open(output_file, "wb") as f:
-                output_pdf.write(f)
+            for i in pages_to_split:
+                output_pdf = PdfWriter()
+                output_pdf.add_page(input_pdf.pages[i])
 
-        QMessageBox.information(self, "Done", "PDF has been split successfully!")
+                output_file = os.path.join(output_dir, f"page_{i + 1}.pdf")
+                with open(output_file, "wb") as f:
+                    output_pdf.write(f)
+
+            QMessageBox.information(self, "Done", "PDF has been split successfully!")
 
     def update_selected_count(self):
         self.count_label.setText(f"Selected PDFs: {len(self.selected_files)}")
@@ -205,6 +208,92 @@ class PDFMergerApp(QMainWindow):
             return
 
         self.context_menu.exec_(self.listbox.viewport().mapToGlobal(position))
+
+class PDFPreviewDialog(QDialog):
+    def __init__(self, pdf_file, num_pages):
+        super().__init__()
+        self.setWindowTitle("Preview PDF")
+        self.setGeometry(200, 200, 800, 600)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.pdf_document = fitz.open(pdf_file)  # Mở PDF bằng fitz
+        self.num_pages = num_pages
+        self.selected_pages = []
+
+        self.checkboxes_layout = QHBoxLayout()
+        layout.addLayout(self.checkboxes_layout)
+
+        self.pages_to_show = 2
+        self.current_page_index = 0
+
+        self.show_pages()
+
+        self.prev_button = QPushButton("Previous", self)
+        self.prev_button.clicked.connect(self.show_previous_pages)
+        layout.addWidget(self.prev_button)
+
+        self.next_button = QPushButton("Next", self)
+        self.next_button.clicked.connect(self.show_next_pages)
+        layout.addWidget(self.next_button)
+
+        layout.addStretch()
+
+        self.split_button = QPushButton("Split", self)
+        self.split_button.clicked.connect(self.split_pages)
+        layout.addWidget(self.split_button)
+
+    def show_pages(self):
+        self.clear_checkboxes()
+        for i in range(self.current_page_index, min(self.current_page_index + self.pages_to_show, self.num_pages)):
+            page = self.pdf_document.load_page(i)
+            pixmap = self.convert_to_pixmap(page)
+            image_label = QLabel(self)
+            image_label.setPixmap(pixmap)
+            self.checkboxes_layout.addWidget(image_label)
+
+            checkbox = QCheckBox(f"Page {i + 1}")
+            checkbox.stateChanged.connect(self.checkbox_state_changed)
+            checkbox.setProperty("page_index", i)
+            self.checkboxes_layout.addWidget(checkbox)
+
+    def clear_checkboxes(self):
+        while self.checkboxes_layout.count():
+            item = self.checkboxes_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+    def convert_to_pixmap(self, page):
+        image = page.get_pixmap()
+        height, width = image.height, image.width
+        bytes_per_line = 3 * width
+        return QPixmap.fromImage(QImage(image.samples, width, height, bytes_per_line, QImage.Format_RGB888))
+
+    def show_previous_pages(self):
+        if self.current_page_index >= self.pages_to_show:
+            self.current_page_index -= self.pages_to_show
+            self.show_pages()
+
+    def show_next_pages(self):
+        if self.current_page_index + self.pages_to_show < self.num_pages:
+            self.current_page_index += self.pages_to_show
+            self.show_pages()
+
+    def checkbox_state_changed(self, state):
+        checkbox = self.sender()
+        page_index = checkbox.property("page_index")
+        if state == 2:
+            self.selected_pages.append(page_index)
+        elif state == 0:
+            self.selected_pages.remove(page_index)
+
+    def split_pages(self):
+        self.accept()
+
+    def get_selected_pages(self):
+        return self.selected_pages
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

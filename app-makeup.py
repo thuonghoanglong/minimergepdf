@@ -14,8 +14,11 @@ class PDFMergerApp(QMainWindow):
         self.setWindowTitle("PDF Merger")
         self.setGeometry(100, 100, 500, 400)
 
-        main_widget = QWidget()
+        main_widget = QWidget(self)
+        self.setCentralWidget(main_widget)
+
         layout = QVBoxLayout()
+        main_widget.setLayout(layout)
 
         self.select_button = QPushButton("Select PDFs", self)
         self.select_button.clicked.connect(self.select_files)
@@ -35,8 +38,11 @@ class PDFMergerApp(QMainWindow):
         self.count_label = QLabel("Selected PDFs: 0", self)
         layout.addWidget(self.count_label)
 
-        main_widget.setLayout(layout)
-        self.setCentralWidget(main_widget)
+        # Create a horizontal line
+        line = QLabel(self)
+        line.setFrameShape(QLabel.HLine)
+        line.setFrameShadow(QLabel.Sunken)
+        layout.addWidget(line)
 
         # Context menu for right-click options
         self.context_menu = QMenu(self)
@@ -51,8 +57,44 @@ class PDFMergerApp(QMainWindow):
         self.listbox.setContextMenuPolicy(3)  # Set context menu policy to CustomContextMenu
         self.listbox.customContextMenuRequested.connect(self.show_context_menu)
 
-        # Allow single selection when clicking on an item
-        self.listbox.setSelectionMode(QListWidget.SingleSelection)
+        self.update_ui()
+
+    def update_ui(self):
+        style_sheet = """
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:pressed {
+                background-color: #3e8e41;
+            }
+            QListWidget {
+                background-color: #f0f0f0;
+                border: none;
+                padding: 5px;
+            }
+            QLabel {
+                padding: 5px;
+            }
+            QMenu {
+                background-color: #f0f0f0;
+            }
+            QMenu::item:selected {
+                background-color: #4CAF50;
+                color: white;
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: #888;
+            }
+        """
+        self.setStyleSheet(style_sheet)
 
     def select_files(self):
         file_dialog = QFileDialog(self)

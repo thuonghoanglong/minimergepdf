@@ -1,7 +1,7 @@
 import os
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QWidget, QPushButton, QListWidget, QLabel, QMenu, QAction, QMessageBox, QFileDialog, QGridLayout
-from PyPDF2 import PdfMerger
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QWidget, QPushButton, QListWidget, QLabel, QMenu, QAction, QMessageBox, QFileDialog
+from PyPDF2 import PdfMerger, PdfFileReader, PdfFileWriter
 
 class PDFMergerApp(QMainWindow):
     def __init__(self):
@@ -11,7 +11,7 @@ class PDFMergerApp(QMainWindow):
         self.sort_order = True
 
     def init_ui(self):
-        self.setWindowTitle("PDF Merger")
+        self.setWindowTitle("PDF Tool")
         self.setGeometry(100, 100, 800, 600)  # Đổi kích thước cửa sổ
 
         main_widget = QWidget(self)
@@ -26,13 +26,17 @@ class PDFMergerApp(QMainWindow):
         self.sort_button = QPushButton("Sort", self)
         self.sort_button.clicked.connect(self.sort_files)
 
-        self.export_button = QPushButton("Merge PDFs", self)
+        self.export_button = QPushButton("Merge PDF", self)
         self.export_button.clicked.connect(self.export_files)
 
-        button_layout = QGridLayout()
-        button_layout.addWidget(self.select_button, 0, 0)
-        button_layout.addWidget(self.sort_button, 0, 1)
-        button_layout.addWidget(self.export_button, 0, 2)
+        self.split_button = QPushButton("Split PDF", self)
+        self.split_button.clicked.connect(self.split_file)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.select_button)
+        button_layout.addWidget(self.sort_button)
+        button_layout.addWidget(self.export_button)
+        button_layout.addWidget(self.split_button)
 
         layout.addLayout(button_layout)
 
@@ -139,6 +143,36 @@ class PDFMergerApp(QMainWindow):
             merger.write(output_pdf)
 
         QMessageBox.information(self, "Done", "PDFs have been merged successfully!")
+
+    def split_file(self):
+        if not self.selected_files:
+            QMessageBox.warning(self, "Warning", "Please select a PDF file to split.")
+            return
+
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select PDF to Split", "", "PDF Files (*.pdf)")
+        if not file_path:
+            return
+
+        input_pdf = PdfFileReader(file_path)
+        num_pages = input_pdf.getNumPages()
+
+        if num_pages == 1:
+            QMessageBox.warning(self, "Warning", "The selected PDF has only one page.")
+            return
+
+        output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+        if not output_dir:
+            return
+
+        for i in range(num_pages):
+            output_pdf = PdfFileWriter()
+            output_pdf.addPage(input_pdf.getPage(i))
+
+            output_file = os.path.join(output_dir, f"page_{i + 1}.pdf")
+            with open(output_file, "wb") as f:
+                output_pdf.write(f)
+
+        QMessageBox.information(self, "Done", "PDF has been split successfully!")
 
     def update_selected_count(self):
         self.count_label.setText(f"Selected PDFs: {len(self.selected_files)}")
